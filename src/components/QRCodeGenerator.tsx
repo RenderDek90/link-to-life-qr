@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import ColorPicker from "./ColorPicker";
+import { cn } from "@/lib/utils";
 import { defaultColors, downloadQRCode, formatTextAsUrl } from "@/utils/qrUtils";
 import { ContactInfo, ErrorCorrectionLevel, generateVCard, errorLevelDescriptions, qrFrameStyles } from "@/utils/qrTypes";
 import { Link, Download, Clipboard, Check, Contact, Share2 } from "lucide-react";
@@ -33,7 +33,6 @@ const QRCodeGenerator = () => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Reset copied state after 2 seconds
   useEffect(() => {
     if (copied) {
       const timeout = setTimeout(() => setCopied(false), 2000);
