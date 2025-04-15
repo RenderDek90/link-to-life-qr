@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Button } from "@/components/ui/button";
@@ -40,11 +41,21 @@ const QRCodeGenerator = () => {
     }
   }, [copied]);
 
+  const isContentValid = () => {
+    if (qrType === "contact") {
+      // For contact type, at least the name should be filled
+      return contact.name.trim() !== "";
+    } else {
+      // For URL and text types, check if text is provided
+      return text.trim() !== "";
+    }
+  };
+
   const handleDownload = () => {
-    if (!text.trim()) {
+    if (!isContentValid()) {
       toast({
-        title: "No content to generate QR code",
-        description: "Please enter some text or URL first.",
+        title: qrType === "contact" ? "Contact name is required" : "No content to generate QR code",
+        description: qrType === "contact" ? "Please enter at least a contact name." : "Please enter some text or URL first.",
         variant: "destructive",
       });
       return;
@@ -65,42 +76,37 @@ const QRCodeGenerator = () => {
   };
 
   const copyToClipboard = () => {
-    if (!text.trim()) {
+    if (!isContentValid()) {
       toast({
         title: "Nothing to copy",
-        description: "Please enter some text or URL first.",
+        description: qrType === "contact" ? "Please enter contact information first." : "Please enter some text or URL first.",
         variant: "destructive",
       });
       return;
     }
     
-    navigator.clipboard.writeText(formatTextAsUrl(text)).then(() => {
+    navigator.clipboard.writeText(getQrValue()).then(() => {
       setCopied(true);
       toast({
         title: "Copied to clipboard",
-        description: "The text has been copied to your clipboard.",
+        description: "The content has been copied to your clipboard.",
       });
     });
   };
 
   const getQrValue = () => {
-    if (!text.trim() && qrType !== "contact") return " ";
-    
-    switch (qrType) {
-      case "url":
-        return formatTextAsUrl(text);
-      case "contact":
-        return generateVCard(contact);
-      default:
-        return text;
+    if (qrType === "contact") {
+      return contact.name ? generateVCard(contact) : " ";
+    } else {
+      return text.trim() ? (qrType === "url" ? formatTextAsUrl(text) : text) : " ";
     }
   };
 
   const handleShare = async () => {
-    if (!text.trim() && qrType !== "contact") {
+    if (!isContentValid()) {
       toast({
         title: "Nothing to share",
-        description: "Please enter some content first.",
+        description: qrType === "contact" ? "Please enter contact information first." : "Please enter some content first.",
         variant: "destructive",
       });
       return;
@@ -178,7 +184,7 @@ const QRCodeGenerator = () => {
           <TabsContent value="contact" className="space-y-4 mt-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
                 <Input
                   id="name"
                   placeholder="John Doe"
@@ -302,7 +308,7 @@ const QRCodeGenerator = () => {
       <CardFooter className="flex justify-between gap-4">
         <Button 
           onClick={handleDownload}
-          disabled={!text.trim() && qrType !== "contact"}
+          disabled={!isContentValid()}
           className="gradient-btn flex-1"
         >
           <Download size={16} className="mr-2" />
@@ -311,7 +317,7 @@ const QRCodeGenerator = () => {
         <Button
           variant="outline"
           onClick={handleShare}
-          disabled={!text.trim() && qrType !== "contact"}
+          disabled={!isContentValid()}
         >
           <Share2 size={16} className="mr-2" />
           Share
