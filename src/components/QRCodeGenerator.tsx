@@ -8,16 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { useToast } from "@/components/ui/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import ColorPicker from "./ColorPicker";
 import { defaultColors, downloadQRCode, formatTextAsUrl } from "@/utils/qrUtils";
-import { Link, Download, Clipboard, Check } from "lucide-react";
+import { ContactInfo, ErrorCorrectionLevel, generateVCard, errorLevelDescriptions, qrFrameStyles } from "@/utils/qrTypes";
+import { Link, Download, Clipboard, Check, Contact, Share2 } from "lucide-react";
 
 const QRCodeGenerator = () => {
   const [text, setText] = useState("");
   const [qrType, setQrType] = useState("url");
   const [qrSize, setQrSize] = useState(200);
   const [fgColor, setFgColor] = useState("#000000");
+  const [errorLevel, setErrorLevel] = useState<ErrorCorrectionLevel>("M");
+  const [frameStyle, setFrameStyle] = useState("none");
+  const [contact, setContact] = useState<ContactInfo>({
+    name: "",
+    phone: "",
+    email: "",
+    organization: "",
+    url: ""
+  });
   const qrRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -74,10 +85,44 @@ const QRCodeGenerator = () => {
   };
 
   const getQrValue = () => {
-    if (!text.trim()) return " "; // Empty space to prevent QR code error
+    if (!text.trim() && qrType !== "contact") return " ";
     
-    // Format as URL if in URL mode, otherwise use as is
-    return qrType === "url" ? formatTextAsUrl(text) : text;
+    switch (qrType) {
+      case "url":
+        return formatTextAsUrl(text);
+      case "contact":
+        return generateVCard(contact);
+      default:
+        return text;
+    }
+  };
+
+  const handleShare = async () => {
+    if (!text.trim() && qrType !== "contact") {
+      toast({
+        title: "Nothing to share",
+        description: "Please enter some content first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "QR Code Content",
+          text: getQrValue(),
+        });
+        toast({
+          title: "Shared successfully",
+          description: "The content has been shared.",
+        });
+      } else {
+        throw new Error("Share not supported");
+      }
+    } catch (error) {
+      copyToClipboard();
+    }
   };
 
   return (
@@ -89,9 +134,10 @@ const QRCodeGenerator = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         <Tabs defaultValue="url" onValueChange={setQrType}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="url">URL</TabsTrigger>
             <TabsTrigger value="text">Text</TabsTrigger>
+            <TabsTrigger value="contact">Contact</TabsTrigger>
           </TabsList>
 
           <TabsContent value="url" className="space-y-4 mt-4">
@@ -129,6 +175,58 @@ const QRCodeGenerator = () => {
               />
             </div>
           </TabsContent>
+
+          <TabsContent value="contact" className="space-y-4 mt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  placeholder="John Doe"
+                  value={contact.name}
+                  onChange={(e) => setContact({ ...contact, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={contact.phone}
+                  onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={contact.email}
+                  onChange={(e) => setContact({ ...contact, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="organization">Organization</Label>
+                <Input
+                  id="organization"
+                  placeholder="Company Name"
+                  value={contact.organization}
+                  onChange={(e) => setContact({ ...contact, organization: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  placeholder="https://example.com"
+                  value={contact.url}
+                  onChange={(e) => setContact({ ...contact, url: e.target.value })}
+                />
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
 
         <div className="space-y-4">
@@ -145,6 +243,38 @@ const QRCodeGenerator = () => {
           </div>
 
           <div className="space-y-2">
+            <Label>Error Correction</Label>
+            <Select value={errorLevel} onValueChange={(value: ErrorCorrectionLevel) => setErrorLevel(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select error correction level" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(errorLevelDescriptions).map(([level, description]) => (
+                  <SelectItem key={level} value={level}>
+                    {description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Frame Style</Label>
+            <Select value={frameStyle} onValueChange={setFrameStyle}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select frame style" />
+              </SelectTrigger>
+              <SelectContent>
+                {qrFrameStyles.map(style => (
+                  <SelectItem key={style.id} value={style.id}>
+                    {style.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>QR Code Color</Label>
             <ColorPicker
               colors={defaultColors}
@@ -153,12 +283,17 @@ const QRCodeGenerator = () => {
             />
           </div>
 
-          <div className="flex justify-center mt-6" ref={qrRef}>
+          <div className={cn(
+            "flex justify-center mt-6 p-4",
+            frameStyle === 'dots' && "bg-dot-pattern rounded-lg",
+            frameStyle === 'square' && "border-2 border-gray-200",
+            frameStyle === 'rounded' && "bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl shadow-inner"
+          )} ref={qrRef}>
             <QRCodeCanvas
               value={getQrValue()}
               size={qrSize}
               fgColor={fgColor}
-              level="M"
+              level={errorLevel}
               includeMargin
               className="rounded-md"
             />
@@ -168,11 +303,19 @@ const QRCodeGenerator = () => {
       <CardFooter className="flex justify-between gap-4">
         <Button 
           onClick={handleDownload}
-          disabled={!text.trim()}
+          disabled={!text.trim() && qrType !== "contact"}
           className="gradient-btn flex-1"
         >
           <Download size={16} className="mr-2" />
-          Download QR Code
+          Download
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleShare}
+          disabled={!text.trim() && qrType !== "contact"}
+        >
+          <Share2 size={16} className="mr-2" />
+          Share
         </Button>
       </CardFooter>
     </Card>

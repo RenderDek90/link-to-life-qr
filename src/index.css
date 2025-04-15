@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -103,5 +102,11 @@
   
   .gradient-btn:hover {
     @apply from-purple-600 to-blue-600 shadow-md;
+  }
+
+  .bg-dot-pattern {
+    background-color: #ffffff;
+    background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+    background-size: 16px 16px;
   }
 }
